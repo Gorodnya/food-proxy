@@ -1,23 +1,21 @@
-const fetch = require('node-fetch');
-
 exports.handler = async (event) => {
+  const { default: fetch } = await import('node-fetch');
+  
   try {
-    // Парсимо URL правильно
     const pathParts = event.path.split('/');
-    const service = pathParts[2]; // /proxy/bolt/...
     const targetUrl = decodeURIComponent(pathParts.slice(3).join('/'));
     
-    console.log('Proxying:', targetUrl); // для логів
+    console.log('Proxying:', targetUrl);
     
     const response = await fetch(targetUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15'
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)'
       }
     });
     
     const headers = {};
-    response.headers.for.each((value, key) => {
-      if (key.toLowerCase() !== 'x-frame-options' && key.toLowerCase() !== 'content-security-policy') {
+    response.headers.forEach((value, key) => {
+      if (!key.toLowerCase().includes('x-frame-options') && !key.toLowerCase().includes('content-security-policy')) {
         headers[key] = value;
       }
     });
@@ -31,9 +29,6 @@ exports.handler = async (event) => {
     };
   } catch (error) {
     console.error(error);
-    return {
-      statusCode: 500,
-      body: `<h1>Proxy error: ${error.message}</h1>`
-    };
+    return { statusCode: 500, body: `Proxy error: ${error.message}` };
   }
 };
