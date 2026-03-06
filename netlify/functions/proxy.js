@@ -21,6 +21,12 @@ exports.handler = async (event) => {
     });
     
     const body = await response.text();
+
+    // Фікс CSP для iframe
+body = body.replace(/<head>/i, '<head><base href="' + targetUrl.split('/').slice(0,3).join('/') + '/">');
+body = body.replace(/content-security-policy-report-only/i, 'x-content-security-policy-report-only');
+body = body.replace(/script-src[^;]*/gi, 'script-src *');
+
     
     return {
       statusCode: 200,
