@@ -1,37 +1,39 @@
-const fetch = require('node-fetch'); // npm install node-fetch в корені!
+const fetch = require('node-fetch');
 
-exports.handler = async (event, context) => {
-  const path = event.path.replace('/proxy/', '');
-  const [service, targetUrl] = path.split('/', 2);
-  const url = decodeURIComponent(targetUrl);
-
+exports.handler = async (event) => {
   try {
-    const response = await fetch(url, {
+    // Парсимо URL правильно
+    const pathParts = event.path.split('/');
+    const service = pathParts[2]; // /proxy/bolt/...
+    const targetUrl = decodeURIComponent(pathParts.slice(3).join('/'));
+    
+    console.log('Proxying:', targetUrl); // для логів
+    
+    const response = await fetch(targetUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15'
       }
     });
-
-    // Видаляємо X-Frame-Options для iframe
+    
     const headers = {};
-    response.headers.forEach((value, key) => {
-      if (!key.toLowerCase().includes('x-frame-options') && !key.toLowerCase().includes('content-security-policy')) {
+    response.headers.for.each((value, key) => {
+      if (key.toLowerCase() !== 'x-frame-options' && key.toLowerCase() !== 'content-security-policy') {
         headers[key] = value;
       }
     });
-    headers['content-type'] = response.headers.get('content-type') || 'text/html; charset=utf-8';
-
-    let body = await response.text();
-
-    // Додатково модифікуємо CSP якщо є
-    body = body.replace(/content-security-policy[^;]*;?/gi, '');
-
+    
+    const body = await response.text();
+    
     return {
       statusCode: 200,
-      headers,
+      headers: { ...headers, 'Content-Type': 'text/html; charset=utf-8' },
       body
     };
   } catch (error) {
-    return { statusCode: 500, body: 'Proxy error: ' + error.message };
+    console.error(error);
+    return {
+      statusCode: 500,
+      body: `<h1>Proxy error: ${error.message}</h1>`
+    };
   }
 };
