@@ -1,41 +1,44 @@
 exports.handler = async (event) => {
   const { default: fetch } = await import('node-fetch');
-  
+
   try {
-    // Тестовий парсер для /proxy/bolt/food.bolt.eu/uk-ua/search?q=чебурек
+    // Ожидаемый путь: /proxy/bolt/food.bolt.eu/uk-ua/158-kyiv/search/?query=...
     const pathParts = event.path.split('/').filter(Boolean);
-    const host = pathParts[2]; // bolt або glovo
-    const targetPath = '/' + pathParts.slice(3).join('/');
-    const targetUrl = `https://${host}.com${targetPath}`;
-    
-    console.log('Event path:', event.path);
-    console.log('Target URL:', targetUrl);
-    
+    // pathParts: ["proxy","bolt","food.bolt.eu","uk-ua","158-kyiv","search", ...]
+    const host = pathParts[2];                  // "food.bolt.eu" или "glovoapp.com"
+    const targetPath = '/' + pathParts.slice(3).join('/'); // "/uk-ua/158-kyiv/search/..."
+    const targetUrl = `https://${host}${targetPath}`;
+
+    console.log('Proxy target:', targetUrl);
+
     const response = await fetch(targetUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X)'
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X)',
+        'Accept': 'text/html,*/*;q=0.9'
       }
     });
-    
+
     const headers = {};
     response.headers.forEach((value, key) => {
-      if (!key.toLowerCase().includes('x-frame-options') && !key.toLowerCase().includes('content-security-policy')) {
+      const k = key.toLowerCase();
+      if (!k.includes('x-frame-options') && !k.includes('content-security-policy')) {
         headers[key] = value;
       }
     });
-    
+
     const body = await response.text();
-    
+
     return {
-      statusCode: 200,
-      headers,
+      statusCode: response.status,
+      headers: { ...headers, 'Content-Type': 'text/html; charset=utf-8' },
       body
     };
   } catch (error) {
-    console.error(error);
-    return { 
-      statusCode: 500, 
-      body: `<pre>Error: ${error.message}\\nPath: ${event.path}</pre>` 
+    console.error('Proxy error:', error);
+    return {
+      statusCode: 500,
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      body: `<pre>Error: ${error.message}\nPath: ${event.path}</pre>`
     };
   }
 };
