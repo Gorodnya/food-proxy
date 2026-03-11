@@ -1,44 +1,48 @@
-exports.handler = async (event) => {
-  const { default: fetch } = await import('node-fetch');
-
-  try {
-    // Ожидаемый путь: /proxy/bolt/food.bolt.eu/uk-ua/158-kyiv/search/?query=...
-    const pathParts = event.path.split('/').filter(Boolean);
-    // pathParts: ["proxy","bolt","food.bolt.eu","uk-ua","158-kyiv","search", ...]
-    const host = pathParts[2];                  // "food.bolt.eu" или "glovoapp.com"
-    const targetPath = '/' + pathParts.slice(3).join('/'); // "/uk-ua/158-kyiv/search/..."
-    const targetUrl = `https://${host}${targetPath}`;
-
-    console.log('Proxy target:', targetUrl);
-
-    const response = await fetch(targetUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X)',
-        'Accept': 'text/html,*/*;q=0.9'
-      }
-    });
-
-    const headers = {};
-    response.headers.forEach((value, key) => {
-      const k = key.toLowerCase();
-      if (!k.includes('x-frame-options') && !k.includes('content-security-policy')) {
-        headers[key] = value;
-      }
-    });
-
-    const body = await response.text();
-
-    return {
-      statusCode: response.status,
-      headers: { ...headers, 'Content-Type': 'text/html; charset=utf-8' },
-      body
-    };
-  } catch (error) {
-    console.error('Proxy error:', error);
-    return {
-      statusCode: 500,
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
-      body: `<pre>Error: ${error.message}\nPath: ${event.path}</pre>`
-    };
-  }
-};
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Food Search Proxy: Bolt vs Glovo</title>
+    <style>
+        body { margin: 0; padding: 20px; font-family: Arial, sans-serif; background: #f5f5f5; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .search-box { max-width: 400px; margin: 0 auto 20px; }
+        input[type="text"] { width: 70%; padding: 12px; font-size: 16px; border: 1px solid #ddd; border-radius: 25px 0 0 25px; }
+        button { padding: 12px 20px; background: #007bff; color: white; border: none; border-radius: 0 25px 25px 0; cursor: pointer; font-size: 16px; }
+        .container { display: flex; flex-direction: column; height: calc(100vh - 200px); gap: 10px; }
+        .frame-container { flex: 1; position: relative; overflow: hidden; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        iframe { width: 100%; height: 100%; border: none; }
+        .label { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.8); color: white; padding: 5px 10px; border-radius: 20px; z-index: 10; }
+        @media (min-width: 768px) { .container { flex-direction: row; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Пошук їжі: Bolt vs Glovo</h1>
+        <div class="search-box">
+            <input type="text" id="query" placeholder="Введіть страву, напр. чебурек" value="чебурек">
+            <button onclick="search()">Шукати</button>
+        </div>
+    </div>
+    <div class="container">
+        <div class="frame-container">
+            <div class="label">Bolt Food (проксі)</div>
+            <iframe id="bolt-frame" src="/proxy/bolt/https://food.bolt.eu/uk-ua/158-kyiv/search/?query=чебурек"></iframe>
+        </div>
+        <div class="frame-container">
+            <div class="label">Glovo (проксі)</div>
+            <iframe id="glovo-frame" src="/proxy/glovo/https://glovoapp.com/uk/ua/kyiv-left-bank/search?q=чебурек"></iframe>
+        </div>
+    </div>
+    <script>
+        function search() {
+            const q = encodeURIComponent(document.getElementById('query').value);
+            document.getElementById('bolt-frame').src = `/proxy/bolt/https://food.bolt.eu/uk-ua/158-kyiv/search/?query=${q}`;
+            document.getElementById('glovo-frame').src = `/proxy/glovo/https://glovoapp.com/uk/ua/kyiv-left-bank/search?q=${q}`;
+        }
+        // Enter для пошуку
+        document.getElementById('query').addEventListener('keypress', (e) => { if (e.key === 'Enter') search(); });
+    </script>
+</body>
+</html>
